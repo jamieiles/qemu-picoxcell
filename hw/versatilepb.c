@@ -159,8 +159,8 @@ static struct arm_boot_info versatile_binfo;
 static void versatile_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model,
-                     int board_id)
+                     const char *initrd_filename, const char *devtree_filename,
+                     const char *cpu_model, int board_id)
 {
     CPUState *env;
     ram_addr_t ram_offset;
@@ -285,6 +285,7 @@ static void versatile_init(ram_addr_t ram_size,
     versatile_binfo.kernel_filename = kernel_filename;
     versatile_binfo.kernel_cmdline = kernel_cmdline;
     versatile_binfo.initrd_filename = initrd_filename;
+    versatile_binfo.dtb_filename = devtree_filename;
     versatile_binfo.board_id = board_id;
     arm_load_kernel(env, &versatile_binfo);
 }
@@ -297,7 +298,7 @@ static void vpb_init(ram_addr_t ram_size,
     versatile_init(ram_size,
                    boot_device,
                    kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 0x183);
+                   initrd_filename, NULL, cpu_model, 0x183);
 }
 
 static void vab_init(ram_addr_t ram_size,
@@ -308,7 +309,18 @@ static void vab_init(ram_addr_t ram_size,
     versatile_init(ram_size,
                    boot_device,
                    kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 0x25e);
+                   initrd_filename, NULL, cpu_model, 0x25e);
+}
+
+static void vdt_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    versatile_init(ram_size,
+                   boot_device,
+                   kernel_filename, kernel_cmdline,
+                   initrd_filename, "versatile.dtb", cpu_model, 0xffffffff);
 }
 
 static QEMUMachine versatilepb_machine = {
@@ -325,10 +337,18 @@ static QEMUMachine versatileab_machine = {
     .use_scsi = 1,
 };
 
+static QEMUMachine versatiledt_machine = {
+    .name = "versatiledt",
+    .desc = "ARM Versatile (device tree)",
+    .init = vdt_init,
+    .use_scsi = 1,
+};
+
 static void versatile_machine_init(void)
 {
     qemu_register_machine(&versatilepb_machine);
     qemu_register_machine(&versatileab_machine);
+    qemu_register_machine(&versatiledt_machine);
 }
 
 machine_init(versatile_machine_init);

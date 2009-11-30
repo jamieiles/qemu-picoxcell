@@ -7,13 +7,19 @@
  * This code is licenced under the GPL.
  */
 
+#include "config.h"
 #include "hw.h"
 #include "arm-misc.h"
 #include "sysemu.h"
 #include "loader.h"
 #include "elf.h"
 
+#ifdef CONFIG_FDT
+#include "device_tree.h"
+#endif
+
 #define KERNEL_ARGS_ADDR 0x100
+#define DTB_LOAD_ADDR    0x00001000
 #define KERNEL_LOAD_ADDR 0x00010000
 #define INITRD_LOAD_ADDR 0x00800000
 
@@ -175,6 +181,43 @@ static void set_kernel_args_old(struct arm_boot_info *info,
     }
 }
 
+static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
+{
+#ifdef CONFIG_FDT
+    void *fdt = NULL;
+    char *filename;
+    int size, rc;
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, binfo->dtb_filename);
+    if (!filename) {
+        fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
+        return -1;
+    }
+
+    fdt = load_device_tree(filename, &size);
+    if (fdt == NULL) {
+        fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
+        qemu_free(filename);
+        return -1;
+    }
+    qemu_free(filename);
+
+    rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
+                                      binfo->kernel_cmdline);
+    if (rc < 0)
+        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+
+    cpu_physical_memory_write (addr, fdt, size);
+
+    return 0;
+
+#else
+    fprintf(stderr, "Platform requested a device tree, "
+                "but qemu was compiled without fdt support\n");
+    return -1;
+#endif
+}
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -186,13 +229,17 @@ static void main_cpu_reset(void *opaque)
             /* Jump to the entry point.  */
             env->regs[15] = info->entry & 0xfffffffe;
             env->thumb = info->entry & 1;
+            env->regs[15] = info->loader_start;
         } else {
             env->regs[15] = info->loader_start;
-            if (old_param) {
-                set_kernel_args_old(info, info->initrd_size,
-                                    info->loader_start);
-            } else {
-                set_kernel_args(info, info->initrd_size, info->loader_start);
+            if (!info->dtb_filename) {
+                if (old_param) {
+                    set_kernel_args_old(info, info->initrd_size,
+                                        info->loader_start);
+                } else {
+                    set_kernel_args(info, info->initrd_size,
+                            info->loader_start);
+                }
             }
         }
     }
@@ -203,7 +250,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 {
     int kernel_size;
     int initrd_size;
-    int n;
+    int n, rc;
     int is_linux = 0;
     uint64_t elf_entry;
     target_phys_addr_t entry;
@@ -261,7 +308,12 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         }
         bootloader[1] |= info->board_id & 0xff;
         bootloader[2] |= (info->board_id >> 8) & 0xff;
-        bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
+        /* for device tree boot, we pass the DTB directly in r2. Otherwise
+         * we point to the kernel args */
+        if (info->dtb_filename)
+            bootloader[5] = info->loader_start + DTB_LOAD_ADDR;
+        else
+            bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
             bootloader[n] = tswap32(bootloader[n]);
@@ -277,6 +329,12 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
                                info->smp_loader_start);
         }
         info->initrd_size = initrd_size;
+
+        if (info->dtb_filename) {
+            rc = load_dtb(info->loader_start + DTB_LOAD_ADDR, info);
+            if (rc)
+                exit(1);
+        }
     }
     info->is_linux = is_linux;
     qemu_register_reset(main_cpu_reset, env);
