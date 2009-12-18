@@ -207,6 +207,19 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
     if (rc < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
+    if (binfo->initrd_size) {
+        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                binfo->loader_start + INITRD_LOAD_ADDR);
+        if (rc < 0)
+            fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+
+        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                    binfo->loader_start +INITRD_LOAD_ADDR +
+                    binfo->initrd_size);
+        if (rc < 0)
+            fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+    }
+
     cpu_physical_memory_write (addr, fdt, size);
 
     return 0;
