@@ -184,6 +184,7 @@ static void set_kernel_args_old(struct arm_boot_info *info,
 static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
 {
 #ifdef CONFIG_FDT
+    uint32_t mem_reg_property[] = { 0, cpu_to_be32(binfo->ram_size) };
     void *fdt = NULL;
     char *filename;
     int size, rc;
@@ -201,6 +202,11 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
         return -1;
     }
     qemu_free(filename);
+
+    rc = qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
+                               sizeof(mem_reg_property));
+    if (rc < 0)
+        fprintf(stderr, "couldn't set /memory/reg\n");
 
     rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
                                       binfo->kernel_cmdline);
