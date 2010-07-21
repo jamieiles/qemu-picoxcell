@@ -26,10 +26,10 @@
 /* The worlds second smallest bootloader.  Set r0-r2, then jump to kernel.  */
 static uint32_t bootloader[] = {
   0xe3a00000, /* mov     r0, #0 */
-  0xe3a01000, /* mov     r1, #0x?? */
-  0xe3811c00, /* orr     r1, r1, #0x??00 */
-  0xe59f2000, /* ldr     r2, [pc, #0] */
-  0xe59ff000, /* ldr     pc, [pc, #0] */
+  0xe59f1004, /* ldr     r1, [pc, #4] */
+  0xe59f2004, /* ldr     r2, [pc, #4] */
+  0xe59ff004, /* ldr     pc, [pc, #4] */
+  0, /* Machine ID */
   0, /* Address of kernel args.  Set by integratorcp_init.  */
   0  /* Kernel entry point.  Set by integratorcp_init.  */
 };
@@ -325,8 +325,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         } else {
             initrd_size = 0;
         }
-        bootloader[1] |= info->board_id & 0xff;
-        bootloader[2] |= (info->board_id >> 8) & 0xff;
+        bootloader[4] = info->board_id;
         /* for device tree boot, we pass the DTB directly in r2. Otherwise
          * we point to the kernel args */
         if (info->dtb_filename)
