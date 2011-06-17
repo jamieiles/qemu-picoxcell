@@ -1,5 +1,5 @@
 /*
- * Picochip picoxcell PC7302 emulation.
+ * Picochip picoxcell picoxcell emulation.
  *
  * Copyright (c) 2011 Picochip Ltd, Jamie Iles
  *
@@ -18,9 +18,9 @@
 #include "blockdev.h"
 #include "pc.h"
 
-static struct arm_boot_info pc7302_binfo;
+static struct arm_boot_info picoxcell_binfo;
 
-static void pc7302_init(ram_addr_t ram_size,
+static void picoxcell_init(ram_addr_t ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
@@ -43,7 +43,7 @@ static void pc7302_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(NULL, "pc7302.ram", ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "picoxcell.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     ram_offset = qemu_ram_alloc(NULL, "picoxcell.sram", 128 * 1024);
@@ -77,20 +77,22 @@ static void pc7302_init(ram_addr_t ram_size,
     if (device_id == 0x8003 || device_id == 0x8007)
         dev = sysbus_create_varargs("axi2cfg,pc3x2", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
-    else
+    else if (device_id == 0x20 || device_id == 0x21 || device_id == 0x22)
         dev = sysbus_create_varargs("axi2cfg,pc3x3", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
+    else
+        dev = sysbus_create_simple("axi2cfg,pc30xx", 0x800A0000, vic0[8]);
     qdev_prop_set_uint32(dev, "device_id", device_id);
 
     sysbus_create_varargs("dwapb_timer", 0x80210000, vic0[4], vic0[5], NULL);
     sysbus_create_simple("dwapb_rtc", 0x80200000, NULL);
 
-    pc7302_binfo.ram_size = ram_size;
-    pc7302_binfo.kernel_filename = kernel_filename;
-    pc7302_binfo.kernel_cmdline = kernel_cmdline;
-    pc7302_binfo.initrd_filename = initrd_filename;
-    pc7302_binfo.board_id = board_id;
-    arm_load_kernel(env, &pc7302_binfo);
+    picoxcell_binfo.ram_size = ram_size;
+    picoxcell_binfo.kernel_filename = kernel_filename;
+    picoxcell_binfo.kernel_cmdline = kernel_cmdline;
+    picoxcell_binfo.initrd_filename = initrd_filename;
+    picoxcell_binfo.board_id = board_id;
+    arm_load_kernel(env, &picoxcell_binfo);
 }
 
 static void pc7302_pc3x2_init(ram_addr_t ram_size,
@@ -100,7 +102,7 @@ static void pc7302_pc3x2_init(ram_addr_t ram_size,
                               const char *initrd_filename,
                               const char *cpu_model)
 {
-    pc7302_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+    picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
                 initrd_filename, cpu_model, 2220, 0x8003);
 }
 
@@ -117,8 +119,8 @@ static void pc7302_pc3x3_init(ram_addr_t ram_size,
                               const char *initrd_filename,
                               const char *cpu_model)
 {
-    pc7302_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
-                initrd_filename, cpu_model, 2220, 0x0022);
+    picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                   initrd_filename, cpu_model, 2220, 0x0022);
 }
 
 static QEMUMachine pc7302_pc3x3_machine = {
@@ -127,9 +129,27 @@ static QEMUMachine pc7302_pc3x3_machine = {
     .init = pc7302_pc3x3_init,
 };
 
+static void pc7308_pc3008_init(ram_addr_t ram_size,
+                               const char *boot_device,
+                               const char *kernel_filename,
+                               const char *kernel_cmdline,
+                               const char *initrd_filename,
+                               const char *cpu_model)
+{
+    picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                   initrd_filename, cpu_model, 3468, 0x0030);
+}
+
+static QEMUMachine pc7308_pc3008_machine = {
+    .name = "pc7308-pc3008",
+    .desc = "picoxcell pc7308 (ARM1176JZ-S)",
+    .init = pc7308_pc3008_init,
+};
+
 static void picoxcell_machine_init(void)
 {
     qemu_register_machine(&pc7302_pc3x2_machine);
     qemu_register_machine(&pc7302_pc3x3_machine);
+    qemu_register_machine(&pc7308_pc3008_machine);
 }
 machine_init(picoxcell_machine_init);
