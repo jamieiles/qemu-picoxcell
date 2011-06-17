@@ -110,9 +110,26 @@ static QEMUMachine pc7302_pc3x2_machine = {
     .init = pc7302_pc3x2_init,
 };
 
+static void pc7302_pc3x3_init(ram_addr_t ram_size,
+                              const char *boot_device,
+                              const char *kernel_filename,
+                              const char *kernel_cmdline,
+                              const char *initrd_filename,
+                              const char *cpu_model)
+{
+    pc7302_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                initrd_filename, cpu_model, 2220, 0x0022);
+}
+
+static QEMUMachine pc7302_pc3x3_machine = {
+    .name = "pc7302-pc3x3",
+    .desc = "picoxcell pc7302 (ARM1176JZ-S)",
+    .init = pc7302_pc3x3_init,
+};
+
 static void picoxcell_machine_init(void)
 {
     qemu_register_machine(&pc7302_pc3x2_machine);
+    qemu_register_machine(&pc7302_pc3x3_machine);
 }
 machine_init(picoxcell_machine_init);
-
