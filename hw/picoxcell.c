@@ -80,8 +80,10 @@ static void picoxcell_init(ram_addr_t ram_size,
     else if (device_id == 0x20 || device_id == 0x21 || device_id == 0x22)
         dev = sysbus_create_varargs("axi2cfg,pc3x3", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
-    else
+    else {
+        sysbus_create_simple("pc30xx_otp", 0xffff8000, NULL);
         dev = sysbus_create_simple("axi2cfg,pc30xx", 0x800A0000, vic0[8]);
+    }
     qdev_prop_set_uint32(dev, "device_id", device_id);
 
     sysbus_create_varargs("dwapb_timer", 0x80210000, vic0[4], vic0[5], NULL);
