@@ -33,6 +33,7 @@ static void picoxcell_init(ram_addr_t ram_size,
     qemu_irq *cpu_pic;
     qemu_irq vic0[32];
     qemu_irq vic1[32];
+    qemu_irq otp_io[9];
     DeviceState *dev;
     int n;
 
@@ -81,7 +82,15 @@ static void picoxcell_init(ram_addr_t ram_size,
         dev = sysbus_create_varargs("axi2cfg,pc3x3", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
     else {
-        sysbus_create_simple("pc30xx_otp", 0xffff8000, NULL);
+        dev = sysbus_create_simple("pc30xx_otp", 0xffff8000, NULL);
+        for (n = 0; n < 9; ++n) {
+            otp_io[n] = qdev_get_gpio_in(dev, n);
+        }
+
+        dev = sysbus_create_varargs("pc30xx_fuse", 0x80080000, otp_io[0],
+                                    otp_io[1], otp_io[2], otp_io[3],
+                                    otp_io[4], otp_io[5], otp_io[6],
+                                    otp_io[7], otp_io[8], NULL);
         dev = sysbus_create_simple("axi2cfg,pc30xx", 0x800A0000, vic0[8]);
     }
     qdev_prop_set_uint32(dev, "device_id", device_id);
