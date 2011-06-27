@@ -34,7 +34,7 @@ static void picoxcell_init(ram_addr_t ram_size,
     qemu_irq vic0[32];
     qemu_irq vic1[32];
     qemu_irq otp_io[9];
-    DeviceState *dev;
+    DeviceState *dev, *fuse;
     int n;
 
     if (!cpu_model)
@@ -75,24 +75,27 @@ static void picoxcell_init(ram_addr_t ram_size,
                    serial_hds[1] : qemu_chr_open("uart2", "null", NULL), 1,
                    0);
 
-    if (device_id == 0x8003 || device_id == 0x8007)
+    if (device_id == 0x8003 || device_id == 0x8007) {
         dev = sysbus_create_varargs("axi2cfg,pc3x2", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
-    else if (device_id == 0x20 || device_id == 0x21 || device_id == 0x22)
+        fuse = sysbus_create_varargs("picoxcell_fuse", 0x80080000, NULL);
+    } else if (device_id == 0x20 || device_id == 0x21 || device_id == 0x22) {
         dev = sysbus_create_varargs("axi2cfg,pc3x3", 0x800A0000, vic0[9], vic0[8],
                                     NULL);
-    else {
+        fuse = sysbus_create_varargs("picoxcell_fuse", 0x80080000, NULL);
+    } else {
         dev = sysbus_create_simple("pc30xx_otp", 0xffff8000, NULL);
         for (n = 0; n < 9; ++n) {
             otp_io[n] = qdev_get_gpio_in(dev, n);
         }
 
-        dev = sysbus_create_varargs("pc30xx_fuse", 0x80080000, otp_io[0],
-                                    otp_io[1], otp_io[2], otp_io[3],
-                                    otp_io[4], otp_io[5], otp_io[6],
-                                    otp_io[7], otp_io[8], NULL);
+        fuse = sysbus_create_varargs("picoxcell_fuse", 0x80080000, otp_io[0],
+                                     otp_io[1], otp_io[2], otp_io[3],
+                                     otp_io[4], otp_io[5], otp_io[6],
+                                     otp_io[7], otp_io[8], NULL);
         dev = sysbus_create_simple("axi2cfg,pc30xx", 0x800A0000, vic0[8]);
     }
+    qdev_prop_set_uint32(fuse, "device_id", device_id);
     qdev_prop_set_uint32(dev, "device_id", device_id);
 
     sysbus_create_varargs("dwapb_timer", 0x80210000, vic0[4], vic0[5], NULL);

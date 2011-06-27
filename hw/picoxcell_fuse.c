@@ -137,12 +137,86 @@ static struct picoxcell_fuse_map pc30xx_fuse_map = {
 	},
 };
 
-struct pc30xx_fuse {
+static struct picoxcell_fuse_map pc3x2_fuse_map = {
+	.nr_fuses	= 4096,
+	.ltp_fuse	= 994,
+	.ranges		= {
+		FUSE_RANGE_PROTECTED(secure_bootstrap, 0, 127, 928, 938, 948),
+		FUSE_RANGE_PROTECTED(counter_iv, 128, 255, 929, 939, 949),
+		FUSE_RANGE_PROTECTED(key2, 256, 383, 930, 940, 950),
+		FUSE_RANGE_PROTECTED(key3, 384, 511, 931, 941, 951),
+		FUSE_RANGE_PROTECTED(key4, 512, 639, 932, 942, 952),
+		FUSE_RANGE_PROTECTED(key5, 640, 767, 933, 943, 953),
+		FUSE_RANGE_PROTECTED(die_ident, 768, 895, 934, 944, 954),
+		FUSE_RANGE_PROTECTED(partition1, 1024, 2047, 935, 945, 955),
+		FUSE_RANGE_PROTECTED(partition2, 2048, 3071, 936, 946, 956),
+		FUSE_RANGE_PROTECTED(partition3, 3072, 4095, 937, 947, 957),
+		FUSE_RANGE(secure_boot, 992, 992),
+		FUSE_RANGE(disable_tz, 993, 993),
+		FUSE_RANGE(global_ltp, 994, 994),
+		FUSE_RANGE(disable_debug, 995, 995),
+		FUSE_RANGE(disable_isc, 996, 996),
+		FUSE_RANGE(disable_jtag, 997, 997),
+		FUSE_RANGE(disable_invasive_debug, 998, 998),
+		FUSE_RANGE(disable_noninvasive_debug, 999, 999),
+		FUSE_RANGE(disable_cp15, 1000, 1000),
+		FUSE_RANGE(disable_memif_arm, 1001, 1001),
+		FUSE_RANGE(disable_nonsecure_parallel_flash, 1002, 1002),
+		FUSE_RANGE_NULL,
+	},
+};
+
+static struct picoxcell_fuse_map pc3x3_fuse_map = {
+	.nr_fuses	= 4096,
+	.ltp_fuse	= 994,
+	.ranges		= {
+		FUSE_RANGE_PROTECTED(secure_bootstrap, 0, 127, 928, 938, 948),
+		FUSE_RANGE_PROTECTED(counter_iv, 128, 255, 929, 939, 949),
+		FUSE_RANGE_PROTECTED(key2, 256, 383, 930, 940, 950),
+		FUSE_RANGE_PROTECTED(key3, 384, 511, 931, 941, 951),
+		FUSE_RANGE_PROTECTED(key4, 512, 639, 932, 942, 952),
+		FUSE_RANGE_PROTECTED(key5, 640, 767, 933, 943, 953),
+		FUSE_RANGE_PROTECTED(die_ident, 768, 895, 934, 944, 954),
+		FUSE_RANGE_PROTECTED(partition1, 1024, 2047, 935, 945, 955),
+		FUSE_RANGE_PROTECTED(partition2, 2048, 3071, 936, 946, 956),
+		FUSE_RANGE_PROTECTED(partition3, 3072, 4095, 937, 947, 957),
+		FUSE_RANGE(secure_boot, 992, 992),
+		FUSE_RANGE(disable_tz, 993, 993),
+		FUSE_RANGE(global_ltp, 994, 994),
+		FUSE_RANGE(disable_debug, 995, 995),
+		FUSE_RANGE(disable_isc, 996, 996),
+		FUSE_RANGE(disable_jtag, 997, 997),
+		FUSE_RANGE(disable_invasive_debug, 998, 998),
+		FUSE_RANGE(disable_noninvasive_debug, 999, 999),
+		FUSE_RANGE(disable_cp15, 1000, 1000),
+		FUSE_RANGE(disable_memif_arm, 1001, 1001),
+		FUSE_RANGE(disable_nonsecure_parallel_flash, 1002, 1002),
+		FUSE_RANGE(global_otp_ltp, 1015, 1015),
+		FUSE_RANGE(otp_disable_jtag, 1016, 1016),
+		FUSE_RANGE(otp_boot_mode, 1017, 1018),
+		FUSE_RANGE(otp_robp1, 1003, 1003),
+		FUSE_RANGE(otp_robp2, 1004, 1004),
+		FUSE_RANGE(otp_robp3, 1005, 1005),
+		FUSE_RANGE(otp_robp4, 1006, 1006),
+		FUSE_RANGE(otp_ltp1, 1007, 1007),
+		FUSE_RANGE(otp_ltp2, 1008, 1008),
+		FUSE_RANGE(otp_ltp3, 1009, 1009),
+		FUSE_RANGE(otp_ltp4, 1010, 1010),
+		FUSE_RANGE(otp_disable_jtag1, 1011, 1011),
+		FUSE_RANGE(otp_disable_jtag2, 1012, 1012),
+		FUSE_RANGE(otp_disable_jtag3, 1013, 1013),
+		FUSE_RANGE(otp_disable_jtag4, 1014, 1014),
+		FUSE_RANGE_NULL,
+	},
+};
+
+struct picoxcell_fuse {
     SysBusDevice busdev;
     QEMUBH *bh;
     ptimer_state *ptimer;
     qemu_irq otp_io[9];
 
+    uint32_t device_id;
     uint32_t fuse_ctrl;
 #define FUSE_CTRL_WRITE_BUSY    (1 << 0)
 #define FUSE_CTRL_VDDQ_OE       (1 << 1)
@@ -152,11 +226,12 @@ struct pc30xx_fuse {
     uint32_t fuses[1024];
 
     unsigned long read_bitmap[BITS_TO_LONGS(1024)];
+    struct picoxcell_fuse_map *map;
 
     int backing;
 };
 
-static uint32_t fuse_read_word_file(struct pc30xx_fuse *fuse,
+static uint32_t fuse_read_word_file(struct picoxcell_fuse *fuse,
                                     uint32_t word_addr)
 {
     uint32_t val;
@@ -169,30 +244,31 @@ static uint32_t fuse_read_word_file(struct pc30xx_fuse *fuse,
     return val;
 }
 
-static const struct picoxcell_fuse_range *find_range(int fuse_idx)
+static const struct picoxcell_fuse_range *
+find_range(const struct picoxcell_fuse *fuse, int fuse_idx)
 {
 	int i;
 
-	for (i = 0; pc30xx_fuse_map.ranges[i].name; ++i)
-		if (fuse_idx >= pc30xx_fuse_map.ranges[i].start &&
-		    fuse_idx <= pc30xx_fuse_map.ranges[i].end)
-			return &pc30xx_fuse_map.ranges[i];
+	for (i = 0; fuse->map->ranges[i].name; ++i)
+		if (fuse_idx >= fuse->map->ranges[i].start &&
+		    fuse_idx <= fuse->map->ranges[i].end)
+			return &fuse->map->ranges[i];
 
 	return NULL;
 }
 
-static inline bool fuse_is_blown(const struct pc30xx_fuse *fuse,
+static inline bool fuse_is_blown(const struct picoxcell_fuse *fuse,
                                  int idx)
 {
     return !!(fuse->fuses[idx / 32] & (1 << (idx & 31)));
 }
 
-static inline bool fuse_name_is_blown(const struct pc30xx_fuse *fuse,
+static inline bool fuse_name_is_blown(const struct picoxcell_fuse *fuse,
                                       const char *name)
 {
     const struct picoxcell_fuse_range *range;
 
-    for (range = &pc30xx_fuse_map.ranges[0]; range->name; range++) {
+    for (range = &fuse->map->ranges[0]; range->name; range++) {
         if (!strcmp(range->name, name)) {
             int i;
 
@@ -207,10 +283,10 @@ static inline bool fuse_name_is_blown(const struct pc30xx_fuse *fuse,
     return false;
 }
 
-static uint32_t fuse_read_word(struct pc30xx_fuse *fuse,
+static uint32_t fuse_read_word(struct picoxcell_fuse *fuse,
                                uint32_t word_addr)
 {
-    const struct picoxcell_fuse_range *range = find_range(word_addr * 32);
+    const struct picoxcell_fuse_range *range = find_range(fuse, word_addr * 32);
 
     if (!range)
         return 0;
@@ -221,7 +297,7 @@ static uint32_t fuse_read_word(struct pc30xx_fuse *fuse,
     return fuse->fuses[word_addr];
 }
 
-static void fuse_write_word(struct pc30xx_fuse *fuse, uint32_t word_addr,
+static void fuse_write_word(struct picoxcell_fuse *fuse, uint32_t word_addr,
                             uint32_t val)
 {
     ssize_t bw;
@@ -231,9 +307,9 @@ static void fuse_write_word(struct pc30xx_fuse *fuse, uint32_t word_addr,
     assert(bw == sizeof(val));
 }
 
-static uint32_t pc30xx_fuse_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t picoxcell_fuse_readl(void *opaque, target_phys_addr_t addr)
 {
-    struct pc30xx_fuse *fuse = opaque;
+    struct picoxcell_fuse *fuse = opaque;
 
     switch (addr) {
     case 0x200:
@@ -247,19 +323,19 @@ static uint32_t pc30xx_fuse_readl(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static inline bool fuse_can_blow(const struct pc30xx_fuse *fuse,
+static inline bool fuse_can_blow(const struct picoxcell_fuse *fuse,
                                  int idx)
 {
-    const struct picoxcell_fuse_range *range = find_range(idx);
+    const struct picoxcell_fuse_range *range = find_range(fuse, idx);
 
     return !((range->last_time_prog >= 0 &&
               fuse_is_blown(fuse, range->last_time_prog)) ||
-             fuse_is_blown(fuse, pc30xx_fuse_map.ltp_fuse));
+             fuse_is_blown(fuse, fuse->map->ltp_fuse));
 }
 
 static void fuse_prog_done(void *opaque)
 {
-    struct pc30xx_fuse *fuse = opaque;
+    struct picoxcell_fuse *fuse = opaque;
     uint32_t bit_addr = fuse->fuse_write_bit_addr;
 
     if (fuse_can_blow(fuse, bit_addr)) {
@@ -271,7 +347,7 @@ static void fuse_prog_done(void *opaque)
     fuse->fuse_ctrl &= ~FUSE_CTRL_WRITE_BUSY;
 }
 
-static void fuse_start_program(struct pc30xx_fuse *fuse)
+static void fuse_start_program(struct picoxcell_fuse *fuse)
 {
     if ((fuse->fuse_ctrl & FUSE_CTRL_VDDQ_OE) &&
         (fuse->fuse_ctrl & FUSE_CTRL_VDDQ)) {
@@ -288,10 +364,10 @@ static void fuse_start_program(struct pc30xx_fuse *fuse)
     }
 }
 
-static void pc30xx_fuse_writel(void *opaque, target_phys_addr_t addr,
+static void picoxcell_fuse_writel(void *opaque, target_phys_addr_t addr,
                                uint32_t val)
 {
-    struct pc30xx_fuse *fuse = opaque;
+    struct picoxcell_fuse *fuse = opaque;
 
     switch (addr) {
     case 0x000 ... 0x1ff:
@@ -319,37 +395,48 @@ static void pc30xx_fuse_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const pc30xx_fuse_read[] = {
+static CPUReadMemoryFunc * const picoxcell_fuse_read[] = {
     NULL,
     NULL,
-    pc30xx_fuse_readl
+    picoxcell_fuse_readl
 };
 
-static CPUWriteMemoryFunc * const pc30xx_fuse_write[] = {
+static CPUWriteMemoryFunc * const picoxcell_fuse_write[] = {
     NULL,
     NULL,
-    pc30xx_fuse_writel
+    picoxcell_fuse_writel
 };
 
-static void pc30xx_fuse_reset(DeviceState *d)
+static void picoxcell_fuse_reset(DeviceState *d)
 {
-    struct pc30xx_fuse *fuse = FROM_SYSBUS(struct pc30xx_fuse,
+    struct picoxcell_fuse *fuse = FROM_SYSBUS(struct picoxcell_fuse,
                                            sysbus_from_qdev(d));
 
-    qemu_set_irq(fuse->otp_io[0], fuse_name_is_blown(fuse, "otp_ropb1"));
-    qemu_set_irq(fuse->otp_io[1], fuse_name_is_blown(fuse, "otp_ropb2"));
-    qemu_set_irq(fuse->otp_io[2], fuse_name_is_blown(fuse, "otp_ropb3"));
-    qemu_set_irq(fuse->otp_io[3], fuse_name_is_blown(fuse, "otp_ropb4"));
-    qemu_set_irq(fuse->otp_io[4], fuse_name_is_blown(fuse, "otp_ltp1"));
-    qemu_set_irq(fuse->otp_io[5], fuse_name_is_blown(fuse, "otp_ltp2"));
-    qemu_set_irq(fuse->otp_io[6], fuse_name_is_blown(fuse, "otp_ltp3"));
-    qemu_set_irq(fuse->otp_io[7], fuse_name_is_blown(fuse, "otp_ltp4"));
-    qemu_set_irq(fuse->otp_io[8], fuse_name_is_blown(fuse, "global_otp_ltp"));
+    switch (fuse->device_id) {
+    case 0x8003:
+    case 0x8007:
+        fuse->map = &pc3x2_fuse_map;
+        break;
+    case 0x20 ... 0x22:
+        fuse->map = &pc3x3_fuse_map;
+        break;
+    case 0x30 ... 0x3F:
+        fuse->map = &pc30xx_fuse_map;
+        qemu_set_irq(fuse->otp_io[0], fuse_name_is_blown(fuse, "otp_ropb1"));
+        qemu_set_irq(fuse->otp_io[1], fuse_name_is_blown(fuse, "otp_ropb2"));
+        qemu_set_irq(fuse->otp_io[2], fuse_name_is_blown(fuse, "otp_ropb3"));
+        qemu_set_irq(fuse->otp_io[3], fuse_name_is_blown(fuse, "otp_ropb4"));
+        qemu_set_irq(fuse->otp_io[4], fuse_name_is_blown(fuse, "otp_ltp1"));
+        qemu_set_irq(fuse->otp_io[5], fuse_name_is_blown(fuse, "otp_ltp2"));
+        qemu_set_irq(fuse->otp_io[6], fuse_name_is_blown(fuse, "otp_ltp3"));
+        qemu_set_irq(fuse->otp_io[7], fuse_name_is_blown(fuse, "otp_ltp4"));
+        qemu_set_irq(fuse->otp_io[8], fuse_name_is_blown(fuse, "global_otp_ltp"));
+    }
 }
 
-static int pc30xx_fuse_init(SysBusDevice *dev)
+static int picoxcell_fuse_init(SysBusDevice *dev)
 {
-    struct pc30xx_fuse *t = FROM_SYSBUS(struct pc30xx_fuse, dev);
+    struct picoxcell_fuse *t = FROM_SYSBUS(struct picoxcell_fuse, dev);
     int regs, err, n;
 
     t->backing = open("fuse_pc30xx.bin", O_RDWR | O_CREAT, 0644);
@@ -361,7 +448,7 @@ static int pc30xx_fuse_init(SysBusDevice *dev)
     for (n = 0; n < 1024; ++n)
         t->fuses[n] = fuse_read_word_file(t, n);
 
-    regs = cpu_register_io_memory(pc30xx_fuse_read, pc30xx_fuse_write, t,
+    regs = cpu_register_io_memory(picoxcell_fuse_read, picoxcell_fuse_write, t,
 				  DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x8000, regs);
 
@@ -386,18 +473,19 @@ out_close:
     return err;
 }
 
-static SysBusDeviceInfo pc30xx_fuse_info = {
-    .init = pc30xx_fuse_init,
-    .qdev.name = "pc30xx_fuse",
-    .qdev.size = sizeof(struct pc30xx_fuse),
-    .qdev.reset = pc30xx_fuse_reset,
+static SysBusDeviceInfo picoxcell_fuse_info = {
+    .init = picoxcell_fuse_init,
+    .qdev.name = "picoxcell_fuse",
+    .qdev.size = sizeof(struct picoxcell_fuse),
+    .qdev.reset = picoxcell_fuse_reset,
     .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("device_id", struct picoxcell_fuse, device_id, 0x8003),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
 
-static void pc30xx_fuse_register(void)
+static void picoxcell_fuse_register(void)
 {
-    sysbus_register_withprop(&pc30xx_fuse_info);
+    sysbus_register_withprop(&picoxcell_fuse_info);
 }
-device_init(pc30xx_fuse_register);
+device_init(picoxcell_fuse_register);

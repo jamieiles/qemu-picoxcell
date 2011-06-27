@@ -50,7 +50,7 @@ static const VMStateDescription vmstate_axi2cfg = {
 static uint32_t pll_calc_freq(struct pc30xx_pll *pll)
 {
     return (((uint32_t)((20000000LLU * (1LLU << 32)) /
-        ((uint64_t)(1 << pll->divq) * (uint64_t)pll->divf))) / 1000000) + 1;
+        ((uint64_t)(1 << pll->divq) * (uint64_t)pll->divf))) / 1000000);
 }
 
 static uint32_t axi2cfg_read(void *opaque, target_phys_addr_t offset)
