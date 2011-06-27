@@ -288,10 +288,8 @@ static uint32_t fuse_read_word(struct picoxcell_fuse *fuse,
 {
     const struct picoxcell_fuse_range *range = find_range(fuse, word_addr * 32);
 
-    if (!range)
-        return 0;
-
-    if (range->read_once > 0 && fuse_is_blown(fuse, range->read_once))
+    if (range && (range->read_once > 0 &&
+                  fuse_is_blown(fuse, range->read_once)))
         return ~0;
 
     return fuse->fuses[word_addr];
@@ -328,9 +326,14 @@ static inline bool fuse_can_blow(const struct picoxcell_fuse *fuse,
 {
     const struct picoxcell_fuse_range *range = find_range(fuse, idx);
 
-    return !((range->last_time_prog >= 0 &&
-              fuse_is_blown(fuse, range->last_time_prog)) ||
-             fuse_is_blown(fuse, fuse->map->ltp_fuse));
+    if (fuse_is_blown(fuse, fuse->map->ltp_fuse))
+        return false;
+
+    if (!range)
+        return true;
+
+    return !(range->last_time_prog >= 0 &&
+             fuse_is_blown(fuse, range->last_time_prog));
 }
 
 static void fuse_prog_done(void *opaque)
