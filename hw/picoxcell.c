@@ -25,7 +25,9 @@ static void picoxcell_init(ram_addr_t ram_size,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
                         const char *initrd_filename,
-                        const char *cpu_model, int board_id,
+                        const char *cpu_model,
+                        const char *dtb_file,
+                        int board_id,
                         uint16_t device_id)
 {
     CPUState *env;
@@ -106,6 +108,7 @@ static void picoxcell_init(ram_addr_t ram_size,
     picoxcell_binfo.kernel_cmdline = kernel_cmdline;
     picoxcell_binfo.initrd_filename = initrd_filename;
     picoxcell_binfo.board_id = board_id;
+    picoxcell_binfo.dtb_filename = dtb_file;
     arm_load_kernel(env, &picoxcell_binfo);
 }
 
@@ -117,7 +120,7 @@ static void pc7302_pc3x2_init(ram_addr_t ram_size,
                               const char *cpu_model)
 {
     picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
-                initrd_filename, cpu_model, 2220, 0x8003);
+                initrd_filename, cpu_model, NULL, 2220, 0x8003);
 }
 
 static QEMUMachine pc7302_pc3x2_machine = {
@@ -134,13 +137,30 @@ static void pc7302_pc3x3_init(ram_addr_t ram_size,
                               const char *cpu_model)
 {
     picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 2220, 0x0022);
+                   initrd_filename, cpu_model, NULL, 2220, 0x0022);
 }
 
 static QEMUMachine pc7302_pc3x3_machine = {
     .name = "pc7302-pc3x3",
     .desc = "picoxcell pc7302 (ARM1176JZ-S)",
     .init = pc7302_pc3x3_init,
+};
+
+static void pc7302_dt_init(ram_addr_t ram_size,
+                              const char *boot_device,
+                              const char *kernel_filename,
+                              const char *kernel_cmdline,
+                              const char *initrd_filename,
+                              const char *cpu_model)
+{
+    picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+                   initrd_filename, cpu_model, "pc7302.dtb", 0xffffffff, 0x0022);
+}
+
+static QEMUMachine pc7302_dt_machine = {
+    .name = "pc7302-dt",
+    .desc = "picoxcell device tree (ARM1176JZ-S)",
+    .init = pc7302_dt_init,
 };
 
 static void pc7308_pc3008_init(ram_addr_t ram_size,
@@ -151,7 +171,7 @@ static void pc7308_pc3008_init(ram_addr_t ram_size,
                                const char *cpu_model)
 {
     picoxcell_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 3468, 0x0030);
+                   initrd_filename, cpu_model, NULL, 3468, 0x0030);
 }
 
 static QEMUMachine pc7308_pc3008_machine = {
@@ -164,6 +184,7 @@ static void picoxcell_machine_init(void)
 {
     qemu_register_machine(&pc7302_pc3x2_machine);
     qemu_register_machine(&pc7302_pc3x3_machine);
+    qemu_register_machine(&pc7302_dt_machine);
     qemu_register_machine(&pc7308_pc3008_machine);
 }
 machine_init(picoxcell_machine_init);
