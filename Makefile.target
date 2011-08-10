@@ -364,6 +364,7 @@ obj-arm-y += dw_apb_timer.o
 obj-arm-y += dw_apb_rtc.o
 obj-arm-y += picoxcell.o axi2cfg_pc3x2.o axi2cfg_pc3x3.o axi2cfg_pc30xx.o otp_pc30xx.o \
 	     picoxcell_fuse.o
+obj-arm-$(CONFIG_FDT) += device_tree.o
 
 obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
 obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o
