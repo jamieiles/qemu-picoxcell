@@ -102,6 +102,7 @@ static void picoxcell_init(ram_addr_t ram_size,
 
     sysbus_create_varargs("dwapb_timer", 0x80210000, vic0[4], vic0[5], NULL);
     sysbus_create_simple("dwapb_rtc", 0x80200000, NULL);
+    dev = sysbus_create_simple("dwapb_gpio", 0x80220000, NULL);
 
     picoxcell_binfo.ram_size = ram_size;
     picoxcell_binfo.kernel_filename = kernel_filename;
