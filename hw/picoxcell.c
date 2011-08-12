@@ -17,8 +17,111 @@
 #include "boards.h"
 #include "blockdev.h"
 #include "pc.h"
+#include "flash.h"
 
 static struct arm_boot_info picoxcell_binfo;
+
+struct nand_state_t {
+    SysBusDevice busdev;
+    DeviceState *nand;
+    int rdy;
+    int ale;
+    int cle;
+    int ce;
+
+    qemu_irq rdy_irq;
+};
+
+static uint32_t nand_readl(void *opaque, target_phys_addr_t addr)
+{
+    struct nand_state_t *s = opaque;
+    uint32_t r;
+    int rdy;
+
+    r = nand_getio(s->nand);
+    nand_getpins(s->nand, &rdy);
+    if (s->rdy != rdy) {
+        s->rdy = rdy;
+        qemu_set_irq(s->rdy_irq, rdy);
+    }
+
+    return r;
+}
+
+static void
+nand_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    struct nand_state_t *s = opaque;
+    int rdy;
+
+    nand_setpins(s->nand, s->cle, s->ale, s->ce, 1, 0);
+    nand_setio(s->nand, value & 0xff);
+    nand_getpins(s->nand, &rdy);
+
+    if (s->rdy != rdy) {
+        s->rdy = rdy;
+        qemu_set_irq(s->rdy_irq, rdy);
+    }
+}
+
+static CPUReadMemoryFunc * const nand_read[] = {
+    &nand_readl,
+    &nand_readl,
+    &nand_readl,
+};
+
+static CPUWriteMemoryFunc * const nand_write[] = {
+    &nand_writel,
+    &nand_writel,
+    &nand_writel,
+};
+
+static void picoxcell_nand_io(void *opaque, int irq, int level)
+{
+    struct nand_state_t *t = opaque;
+
+    assert(irq >= 0 && irq <= 2);
+
+    if (irq == 0)
+        t->ale = level;
+    else if (irq == 1)
+        t->cle = level;
+    else if (irq == 2)
+        t->ce = level;
+}
+
+static int picoxcell_nand_init(SysBusDevice *dev)
+{
+    struct nand_state_t *t = FROM_SYSBUS(struct nand_state_t, dev);
+    int regs;
+    struct DriveInfo *nand;
+
+    nand = drive_get(IF_MTD, 0, 0);
+    t->nand = nand_init(nand ? nand->bdrv : NULL, NAND_MFR_MICRON, 0xda);
+
+    regs = cpu_register_io_memory(nand_read, nand_write, t,
+                                  DEVICE_NATIVE_ENDIAN);
+    sysbus_init_mmio(dev, 0x08000000, regs);
+    qdev_init_gpio_in(&dev->qdev, picoxcell_nand_io, 3);
+    sysbus_init_irq(dev, &t->rdy_irq);
+
+    return 0;
+}
+
+static SysBusDeviceInfo picoxcell_nand_info = {
+    .init = picoxcell_nand_init,
+    .qdev.name = "picoxcell_nand",
+    .qdev.size = sizeof(struct nand_state_t),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void picoxcell_nand_register(void)
+{
+    sysbus_register_withprop(&picoxcell_nand_info);
+}
+device_init(picoxcell_nand_register);
 
 static void picoxcell_init(ram_addr_t ram_size,
                         const char *boot_device,
@@ -36,8 +139,9 @@ static void picoxcell_init(ram_addr_t ram_size,
     qemu_irq vic0[32];
     qemu_irq vic1[32];
     qemu_irq otp_io[9];
-    DeviceState *dev, *fuse;
+    DeviceState *dev, *fuse, *nand;
     int n;
+    qemu_irq rdy;
 
     if (!cpu_model)
         cpu_model = "arm1176";
@@ -103,6 +207,13 @@ static void picoxcell_init(ram_addr_t ram_size,
     sysbus_create_varargs("dwapb_timer", 0x80210000, vic0[4], vic0[5], NULL);
     sysbus_create_simple("dwapb_rtc", 0x80200000, NULL);
     dev = sysbus_create_simple("dwapb_gpio", 0x80220000, NULL);
+
+    rdy = qdev_get_gpio_in(dev, 1);
+    nand = sysbus_create_varargs("picoxcell_nand", 0x50000000, rdy, NULL);
+
+    qdev_connect_gpio_out(dev, 3, qdev_get_gpio_in(nand, 0));
+    qdev_connect_gpio_out(dev, 4, qdev_get_gpio_in(nand, 1));
+    qdev_connect_gpio_out(dev, 2, qdev_get_gpio_in(nand, 2));
 
     picoxcell_binfo.ram_size = ram_size;
     picoxcell_binfo.kernel_filename = kernel_filename;
