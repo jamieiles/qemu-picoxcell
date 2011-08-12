@@ -362,6 +362,7 @@ obj-arm-y += strongarm.o
 obj-arm-y += collie.o
 obj-arm-y += dw_apb_timer.o
 obj-arm-y += dw_apb_rtc.o
+obj-arm-y += dw_apb_gpio.o
 obj-arm-y += picoxcell.o axi2cfg_pc3x2.o axi2cfg_pc3x3.o axi2cfg_pc30xx.o otp_pc30xx.o \
 	     picoxcell_fuse.o
 obj-arm-$(CONFIG_FDT) += device_tree.o
